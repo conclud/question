@@ -1,0 +1,15 @@
+class queBlcok():
+    def __init__(self):
+        self.workTemp = []
+        self.working = False
+
+    def qorking(self, work):
+        self.workTemp.insert(0, work)
+        while True:
+            if self.working != True:
+                self.working = True
+                self.workTemp.pop(-1)
+                self.working = False
+                break
+            else:
+                continue
