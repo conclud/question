@@ -1,15 +1,77 @@
-class queBlcok():
+class MyWindow(QMainWindow):
     def __init__(self):
-        self.workTemp = []
-        self.working = False
+        super().__init__()
+        self.setWindowTitle('PLUS API TEST')
+        nHeight = 20
+        btnNoContract = QPushButton("계좌잔고", self)
+        btnNoContract.move(20, nHeight)
+        btnNoContract.clicked.connect(self.findBal)
+        self.setGeometry(500, 300, 150, 100)
 
-    def qorking(self, work):
-        self.workTemp.insert(0, work)
-        while True:
-            if self.working != True:
-                self.working = True
-                self.workTemp.pop(-1)
-                self.working = False
-                break
-            else:
-                continue
+        self.b = Balance(self)
+
+    def findBal(self):
+        print("계좌잔고버튼 클릭")
+        self.b.request()
+        return
+
+    def forwardReply(self, list):
+        print(list)
+
+# request 위한 class
+class Balance:
+    def __init__(self, parentVar):
+        print("Balance class 실행")
+        objTrade = win32com.client.Dispatch("CpTrade.CpTdUtil")
+        objTrade.TradeInit()
+        self.ObjBal = win32com.client.Dispatch('CpTrade.CpTd6033')
+        self.parVar = parentVar
+
+
+    def request(self):
+        self.ObjBal.SetInputValue(0, '335011914') # 계좌번호
+        self.ObjBal.SetInputValue(1, 10) # 상품관리구분코드
+        self.ObjBal.SetInputValue(2, 100) # 요청건수 (3종목까지만 사니까 3개만)
+        self.ObjBal.SetInputValue(3, "2") # 수익률구분 코드 1:100%기준 2:0%기준
+        self.ObjBal.Request()
+        print("Request() 됨")
+
+        self.Cp6033 = Cp6033(self.ObjBal, self)
+        self.Cp6033.subscribe()
+
+
+    def reply(self):
+        balNum = self.ObjBal.GetHeaderValue(1)  # 결제 잔고수량
+        conNum = self.ObjBal.GetHeaderValue(2)  # 체결 잔고수량
+        profit = format(self.ObjBal.GetHeaderValue(8))  # 수익률
+        item = [balNum, conNum, profit]
+        print(balNum, conNum, profit)
+        self.parVar.forwardReply(item)
+
+# 이벤트-핸들러 세트
+class Cp6033:
+    def __init__(self, dispVar, modVar):
+        self.dispVar = dispVar
+        self.parVar = modVar
+
+    def subscribe(self):
+        print("이벤트-핸들러 세트")
+        handler = win32com.client.WithEvents(self.dispVar, CpEvent)
+        handler.set_params(self.parVar)
+
+# 핸들러 동작
+class CpEvent:
+    def set_params(self, modVar):
+        print("핸들러 파라메터 세트")
+        self.modVar = modVar
+
+    def OnRecieved(self):
+        print("핸들러 수행")
+        self.modVar.reply()
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    myWindow = MyWindow()
+    myWindow.show()
+    app.exec_()
